@@ -2,114 +2,92 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MIDI Recorder with Backing Track</title>
-  <style>
-    body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-      font-family: Arial, sans-serif;
+  <title>JazzMIDIJam</title>
+  <!--MIDI libraries-->
+  <script src="https://cdn.jsdelivr.net/npm/webmidi@latest/dist/iife/webmidi.iife.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/midiwriter@latest/dist/MidiWriter.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/midi.js@latest"></script>
+  <script type="module">
+    WebMidi.enable()
+      .then(onEnabled)
+      .catch(err => alert(err));
+
+    let recordedNotes = [];
+
+    function onEnabled() {
+      if (WebMidi.inputs.length < 1) {
+        document.body.innerHTML += "No MIDI input device detected.";
+      } else {
+        WebMidi.inputs.forEach((device, index) => {
+          document.body.innerHTML += `${index}: ${device.name} <br>`;
+        });
+
+        const mySynth = WebMidi.inputs[0];
+        mySynth.addListener("noteon", (e) => {
+          document.body.innerHTML += `${e.note.name} <br>`;
+          recordedNotes.push({ name: e.note.name, velocity: e.velocity, duration: 500 }); // Adjust the duration as needed
+        });
+      }
     }
 
-    button {
-      padding: 10px;
-      margin: 10px;
-      font-size: 16px;
-      cursor: pointer;
+    function playAudio() {
+      const audioFileInput = document.getElementById('audioFile');
+      const audioFile = audioFileInput.files[0];
+
+      if (audioFile) {
+        const audio = new Audio(URL.createObjectURL(audioFile));
+        audio.play();
+      } else {
+        alert('Please select an audio file.');
+      }
     }
 
-    #status {
-      margin-top: 20px;
-      font-size: 18px;
-      color: #333;
+    function saveMIDI() {
+      const track = new MidiWriter.Track();
+      recordedNotes.forEach((note) => {
+        track.addEvent(new MidiWriter.NoteEvent({ pitch: [note.name], duration: 'T' + note.duration }));
+      });
+
+      const writer = new MidiWriter.Writer([track]);
+      const midiBlob = new Blob([writer.buildFile()], { type: 'audio/midi' });
+      const url = URL.createObjectURL(midiBlob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'recorded_midi.mid';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
-  </style>
+
+    function visualizeMIDI() {
+      MIDI.loadPlugin({
+        soundfontUrl: "https://cdn.jsdelivr.net/npm/midi.js@latest/soundfont/",
+        instrument: "acoustic_grand_piano",
+        onsuccess: function () {
+          const track = new MidiWriter.Track();
+          recordedNotes.forEach((note) => {
+            track.addEvent(new MidiWriter.NoteEvent({ pitch: [note.name], duration: 'T' + note.duration }));
+          });
+
+          const writer = new MidiWriter.Writer([track]);
+          const midiData = writer.buildFile();
+          const song = MIDI.Player.loadFile(midiData);
+          MIDI.Player.stop();
+          MIDI.Player.clearAnimation();
+          MIDI.Player.start(song);
+        },
+      });
+    }
+  </script>
 </head>
 <body>
-  <h1>MIDI Recorder with Backing Track</h1>
-  <audio id="backingTrack" controls>
-    <source src="your_backing_track.mp3" type="audio/mpeg">
-    Your browser does not support the audio element.
-  </audio>
-  <button id="startRecording">Start Recording</button>
-  <button id="stopRecording" disabled>Stop Recording</button>
-  <a id="downloadLink" style="display: none;">Download MIDI</a>
-  <div id="status">Status: Idle</div>
-
-  <script src="https://cdn.jsdelivr.net/npm/tone@14.8.26/build/Tone.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const startRecordingBtn = document.getElementById('startRecording');
-      const stopRecordingBtn = document.getElementById('stopRecording');
-      const downloadLink = document.getElementById('downloadLink');
-      const statusElement = document.getElementById('status');
-
-      let isRecording = false;
-      let recordedEvents = [];
-
-      // Create a Tone.js player for the backing track
-      const player = new Tone.Player("your_backing_track.mp3").toDestination();
-
-      // Set up Tone.js transport
-      Tone.Transport.start();
-
-      startRecordingBtn.addEventListener('click', () => {
-        isRecording = true;
-        recordedEvents = [];
-        startRecordingBtn.disabled = true;
-        stopRecordingBtn.disabled = false;
-        statusElement.innerText = 'Status: Recording...';
-
-        // Start playing the backing track
-        player.start();
-      });
-
-      stopRecordingBtn.addEventListener('click', () => {
-        isRecording = false;
-        startRecordingBtn.disabled = false;
-        stopRecordingBtn.disabled = true;
-        statusElement.innerText = 'Status: Idle';
-
-        // Stop recording MIDI and the backing track
-        player.stop();
-        Tone.Transport.stop();
-
-        // Download recorded MIDI
-        downloadLink.href = createMidiBlob(recordedEvents);
-        downloadLink.download = 'recorded_midi.mid';
-        downloadLink.style.display = 'block';
-      });
-
-      // MIDI recording
-      if (navigator.requestMIDIAccess) {
-        navigator.requestMIDIAccess().then((midiAccess) => {
-          const inputs = midiAccess.inputs.values();
-
-          for (let input = inputs.next(); input && !input.done; input = inputs.next()) {
-            input.value.onmidimessage = (event) => {
-              if (isRecording) {
-                recordedEvents.push(event.data);
-              }
-            };
-          }
-        }, (err) => {
-          console.error('MIDI Access Error:', err);
-          statusElement.innerText = 'Status: MIDI Access Error';
-        });
-      } else {
-        console.error('Web MIDI API not supported');
-        statusElement.innerText = 'Status: Web MIDI API not supported';
-      }
-
-      // Function to create a Blob from MIDI events
-      function createMidiBlob(events) {
-        // (Function implementation remains the same as the previous example)
-      }
-    });
-  </script>
+  <h1>WebMidi.js with Audio and MIDI.js</h1>
+  <label for="audioFile">Select Backing Track:</label>
+  <input type="file" id="audioFile" accept="audio/*">
+  <br>
+  <button onclick="playAudio()">Play Audio</button>
+  <button onclick="saveMIDI()">Save MIDI</button>
+  <button onclick="visualizeMIDI()">Visualize MIDI</button>
 </body>
 </html>
