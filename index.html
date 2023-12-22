@@ -1,99 +1,123 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>JazzMIDIJam</title>
-  <!--MIDI libraries-->
-  <script src="https://cdn.jsdelivr.net/npm/webmidi@latest/dist/iife/webmidi.iife.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/midiwriter@latest/dist/MidiWriter.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/midi.js@latest"></script>
-  <script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5,npm/html-midi-player@1.5.0"></script>
-  <script type="module">
-    WebMidi.enable()
-      .then(onEnabled)
-      .catch(err => alert(err));
-
-    let recordedNotes = [];
-
-    function onEnabled() {
-      if (WebMidi.inputs.length < 1) {
-        document.body.innerHTML += "No MIDI input device detected.";
-      } else {
-        WebMidi.inputs.forEach((device, index) => {
-          document.body.innerHTML += `${index}: ${device.name} <br>`;
-        });
-
-        const mySynth = WebMidi.inputs[0];
-        mySynth.addListener("noteon", (e) => {
-          document.body.innerHTML += `${e.note.name} <br>`;
-          recordedNotes.push({ name: e.note.name, velocity: e.velocity, duration: 500 }); // Adjust the duration as needed
-        });
-      }
-    }
-
-    function playAudio() {
-      const audioFileInput = document.getElementById('audioFile');
-      const audioFile = audioFileInput.files[0];
-
-      if (audioFile) {
-        const audio = new Audio(URL.createObjectURL(audioFile));
-        audio.play();
-      } else {
-        alert('Please select an audio file.');
-      }
-    }
-
-    function saveMIDI() {
-      const track = new MidiWriter.Track();
-      recordedNotes.forEach((note) => {
-        track.addEvent(new MidiWriter.NoteEvent({ pitch: [note.name], duration: 'T' + note.duration }));
-      });
-
-      const writer = new MidiWriter.Writer([track]);
-      const midiBlob = new Blob([writer.buildFile()], { type: 'audio/midi' });
-      const url = URL.createObjectURL(midiBlob);
-
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'recorded_midi.mid';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    }
-
-    function visualizeMIDI() {
-      MIDI.loadPlugin({
-        soundfontUrl: "https://cdn.jsdelivr.net/npm/midi.js@latest/soundfont/",
-        instrument: "acoustic_grand_piano",
-        onsuccess: function () {
-          const track = new MidiWriter.Track();
-          recordedNotes.forEach((note) => {
-            track.addEvent(new MidiWriter.NoteEvent({ pitch: [note.name], duration: 'T' + note.duration }));
-          });
-
-          const writer = new MidiWriter.Writer([track]);
-          const midiData = writer.buildFile();
-          const song = MIDI.Player.loadFile(midiData);
-          MIDI.Player.stop();
-          MIDI.Player.clearAnimation();
-          MIDI.Player.start(song);
-        },
-      });
-    }
-  </script>
+    <meta charset="UTF-8">
+    <title>MIDI Recorder with Backing Track</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/midi.js@latest/css/midi-js.css">
 </head>
 <body>
-  <h1>WebMidi.js with Audio and MIDI.js</h1>
-  <label for="audioFile">Select Backing Track:</label>
-  <input type="file" id="audioFile" accept="audio/*">
-  <br>
-  <button onclick="playAudio()">Play Audio</button>
-  <button onclick="saveMIDI()">Save MIDI</button>
-  <button onclick="visualizeMIDI()">Visualize MIDI</button>
-  <midi-player
-  src="https://magenta.github.io/magenta-js/music/demos/melody.mid"
-  sound-font visualizer="#myVisualizer">
-</midi-player>
-<midi-visualizer type="piano-roll" id="myVisualizer"></midi-visualizer>
+    <h1>MIDI Recorder with Backing Track</h1>
+    <label for="backingTrack">Select Backing Track:</label>
+    <input type="file" id="backingTrack" accept="audio/*">
+    <br>
+    <button id="startButton">Start Recording</button>
+    <button id="stopButton" disabled>Stop Recording</button>
+
+    <div id="midiVisualization"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/webmidi@latest/dist/iife/webmidi.iife.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tone@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/midi.js@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/midi-writer-js@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/midi.js@latest/js/midi/audioDetect.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/midi.js@latest/js/midi/gm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/midi.js@latest/js/midi/loader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/midi.js@latest/js/midi/plugin.audiotag.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/midi.js@latest/js/midi/plugin.webaudio.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/midi.js@latest/js/midi/plugin.webmidi.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/midi.js@latest/js/midi/player.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/midi.js@latest/js/util/dom_request_xhr.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/midi.js@latest/js/util/dom_request_script.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            let recording = false;
+            const recordedNotes = [];
+            let midiOutput;
+
+            WebMidi.enable().then(onEnabled).catch(err => alert(err));
+
+            function onEnabled() {
+                const input = WebMidi.inputs[0];
+                midiOutput = new MidiWriter.Writer();
+
+                if (!input) {
+                    alert('No MIDI input device detected.');
+                    return;
+                }
+
+                input.addListener('noteon', 'all', function (e) {
+                    if (recording) {
+                        recordedNotes.push({ name: e.note.name, velocity: e.velocity, time: e.timestamp });
+                        midiOutput.track().note({
+                            pitch: [e.note.name],
+                            duration: '8', // Adjust the duration as needed
+                            velocity: e.velocity,
+                        });
+                    }
+                });
+            }
+
+            const startButton = document.getElementById('startButton');
+            const stopButton = document.getElementById('stopButton');
+            const backingTrackInput = document.getElementById('backingTrack');
+            const midiVisualization = document.getElementById('midiVisualization');
+
+            startButton.addEventListener('click', function () {
+                startRecording();
+            });
+
+            stopButton.addEventListener('click', function () {
+                stopRecording();
+            });
+
+            function startRecording() {
+                recording = true;
+                recordedNotes.length = 0;
+                midiOutput = new MidiWriter.Writer();
+                startButton.disabled = true;
+                stopButton.disabled = false;
+            }
+
+            function stopRecording() {
+                recording = false;
+                startButton.disabled = false;
+                stopButton.disabled = true;
+
+                // Visualize MIDI
+                visualizeMIDI(midiOutput);
+            }
+
+            function visualizeMIDI(midiData) {
+                MIDI.loadPlugin({
+                    soundfontUrl: "https://cdn.jsdelivr.net/npm/midi.js@latest/soundfont/",
+                    instrument: "acoustic_grand_piano",
+                    onsuccess: function () {
+                        const player = new MidiWriter.Player(function (event, index) {
+                            MIDI.Player.stop();
+                            MIDI.Player.clearAnimation();
+                            MIDI.Player.start(event);
+                        });
+                        player.loadFile(midiData);
+                        player.setTempo(120);
+                        player.play();
+                    },
+                });
+            }
+
+            // Play the selected backing track
+            backingTrackInput.addEventListener('change', function () {
+                const backingTrack = backingTrackInput.files[0];
+
+                if (backingTrack) {
+                    const audio = new Tone.Player(URL.createObjectURL(backingTrack)).toDestination();
+                    audio.sync().start(0);
+                } else {
+                    alert('Please select a backing track.');
+                }
+            });
+        });
+    </script>
 </body>
 </html>
+
