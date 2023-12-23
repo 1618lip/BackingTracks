@@ -6,44 +6,37 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/midi.js@latest/css/midi-js.css">
 </head>
 <body>
-    <h1>MIDI Recorder with Backing Track</h1>
-    <label for="backingTrack">Select Jazz Standard:</label>
+    <h1><b>JazzMIDIJam</b></h1>
+    <h2>Jam along, playing a Jazz Standard</h2>
+    <hr>
+    <label for="backingTrack">Select Backing Track:</label>
     <input type="file" id="backingTrack" accept="audio/*">
     <br>
     <button id="startButton">Start Recording</button>
     <button id="stopButton" disabled>Stop Recording</button>
 
-    <div id="midiVisualization"></div>
-
     <script src="https://cdn.jsdelivr.net/npm/webmidi@latest/dist/iife/webmidi.iife.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tone@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/midi.js@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/midi-writer-js@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/midi.js@latest/js/midi/audioDetect.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/midi.js@latest/js/midi/gm.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/midi.js@latest/js/midi/loader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/midi.js@latest/js/midi/plugin.audiotag.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/midi.js@latest/js/midi/plugin.webaudio.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/midi.js@latest/js/midi/plugin.webmidi.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/midi.js@latest/js/midi/player.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/midi.js@latest/js/util/dom_request_xhr.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/midi.js@latest/js/util/dom_request_script.js"></script>
 
     <script>
+        import MidiWriter from 'midi-writer-js';//Import the library needed
         document.addEventListener('DOMContentLoaded', function () {
             let recording = false;
             const recordedNotes = [];
             let midiOutput;
 
-            WebMidi.enable().then(onEnabled).catch(err => alert(err));
+            WebMidi.enable().then(onEnabled).catch(err => alert(err));//if there's error, it'll catch it here
 
             function onEnabled() {
                 const input = WebMidi.inputs[0];
+                const MidiWriter = MidiWriterJS; // Assuming 'MidiWriterJS' is the correct alias
                 midiOutput = new MidiWriter.Writer();
 
-                if (!input) {
-                    alert('No MIDI input device detected.');
-                    return;
+                if (input) {//this is input
+                    alert('No MIDI input device detected.');//no input device detected
+                    return;//RETURN SOMETHING HEREEEEEE
                 }
 
                 input.addListener('noteon', 'all', function (e) {
@@ -58,10 +51,9 @@
                 });
             }
 
-            const startButton = document.getElementById('startButton');
+            const startButton = document.getElementById('startButton'); //start button 
             const stopButton = document.getElementById('stopButton');
             const backingTrackInput = document.getElementById('backingTrack');
-            const midiVisualization = document.getElementById('midiVisualization');
 
             startButton.addEventListener('click', function () {
                 startRecording();
@@ -83,26 +75,6 @@
                 recording = false;
                 startButton.disabled = false;
                 stopButton.disabled = true;
-
-                // Visualize MIDI
-                visualizeMIDI(midiOutput);
-            }
-
-            function visualizeMIDI(midiData) {
-                MIDI.loadPlugin({
-                    soundfontUrl: "https://cdn.jsdelivr.net/npm/midi.js@latest/soundfont/",
-                    instrument: "acoustic_grand_piano",
-                    onsuccess: function () {
-                        const player = new MidiWriter.Player(function (event, index) {
-                            MIDI.Player.stop();
-                            MIDI.Player.clearAnimation();
-                            MIDI.Player.start(event);
-                        });
-                        player.loadFile(midiData);
-                        player.setTempo(120);
-                        player.play();
-                    },
-                });
             }
 
             // Play the selected backing track
@@ -120,4 +92,3 @@
     </script>
 </body>
 </html>
-
