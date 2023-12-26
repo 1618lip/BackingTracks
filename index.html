@@ -32,6 +32,8 @@
                 <a href="https://github.com/1618lip/JazzMIDIJam/raw/main/BackingTracks/A_Foggy_Day.mp3"> Download audio </a>
             </audio>
         </figure>
+        <button id="startRecording">Start Recording</button>
+        <button id="stopRecording" disabled>Stop Recording</button>
     </div>
     
     <div class="panel" id="bluebossa">
@@ -41,6 +43,8 @@
                 <a href="https://github.com/1618lip/JazzMIDIJam/raw/main/BackingTracks/Blue_Bossa.mp3"> Download audio </a>
             </audio>
         </figure>
+        <button id="startRecording">Start Recording</button>
+        <button id="stopRecording" disabled>Stop Recording</button>
     </div>
     <div class="panel" id="confirmation">
         <figure>
@@ -49,6 +53,8 @@
                 <a href="https://github.com/1618lip/JazzMIDIJam/raw/main/BackingTracks/Confirmation.mp3"> Download audio </a>
             </audio>
         </figure>
+        <button id="startRecording">Start Recording</button>
+        <button id="stopRecording" disabled>Stop Recording</button>
     </div>
     <div class="panel" id="donnalee">
         <figure>
@@ -57,6 +63,8 @@
                 <a href="https://github.com/1618lip/JazzMIDIJam/raw/main/BackingTracks/Donna_Lee.mp3"> Download audio </a>
             </audio>
         </figure>
+        <button id="startRecording">Start Recording</button>
+        <button id="stopRecording" disabled>Stop Recording</button>
     </div>
     <div class="panel" id="giantsteps">
         <figure>
@@ -65,6 +73,8 @@
                 <a href="https://github.com/1618lip/JazzMIDIJam/raw/main/BackingTracks/Giant_Steps.mp3"> Download audio </a>
             </audio>
         </figure>
+        <button id="startRecording">Start Recording</button>
+        <button id="stopRecording" disabled>Stop Recording</button>
     </div>
     <div class="panel" id="justfriends">
         <figure>
@@ -73,6 +83,8 @@
                 <a href="https://github.com/1618lip/JazzMIDIJam/raw/main/BackingTracks/Just_Friends.mp3"> Download audio </a>
             </audio>
         </figure>
+        <button id="startRecording">Start Recording</button>
+        <button id="stopRecording" disabled>Stop Recording</button>
     </div>
     <div class="panel" id="recordame">
         <figure>
@@ -81,11 +93,74 @@
                 <a href="https://github.com/1618lip/JazzMIDIJam/raw/main/BackingTracks/Recordame.mp3"> Download audio </a>
             </audio>
         </figure>
+        <button id="startRecording">Start Recording</button>
+        <button id="stopRecording" disabled>Stop Recording</button>
     </div>
   </div>
 </div>
 
 <script>
+  document.addEventListener('DOMContentLoaded', () => {
+  const startRecordingButton = document.getElementById('startRecording');
+  const stopRecordingButton = document.getElementById('stopRecording');
+  const backingTrack = document.getElementById('backingTrack');
+
+  let midiAccess;
+  let midiStream;
+  let startTime;
+
+  startRecordingButton.addEventListener('click', startRecording);
+  stopRecordingButton.addEventListener('click', stopRecording);
+
+  async function startRecording() {
+    try {
+      midiAccess = await navigator.requestMIDIAccess();
+      const inputs = midiAccess.inputs.values();
+      midiStream = inputs.next().value;
+
+      if (!midiStream) {
+        alert('No MIDI input devices found.');
+        return;
+      }
+
+      // Start the recording timer
+      startTime = Date.now();
+
+      // Enable the stop button and disable the start button
+      startRecordingButton.disabled = true;
+      stopRecordingButton.disabled = false;
+
+      // Add event listener to handle MIDI messages
+      midiStream.onmidimessage = handleMIDIMessage;
+    } catch (error) {
+      console.error('Error starting MIDI recording:', error);
+    }
+  }
+
+  function stopRecording() {
+    // Disable the stop button and enable the start button
+    startRecordingButton.disabled = false;
+    stopRecordingButton.disabled = true;
+
+    // Stop listening for MIDI messages
+    midiStream.onmidimessage = null;
+  }
+
+  function handleMIDIMessage(event) {
+    // Calculate the time elapsed since recording started
+    const currentTime = Date.now();
+    const elapsedTime = currentTime - startTime;
+
+    // Get the MIDI message data
+    const [status, note, velocity] = event.data;
+
+    // Check if the message is a Note On event
+    if (status === 144) {
+      // Log the MIDI data (replace this with your MIDI recording logic)
+      console.log(`Time: ${elapsedTime}ms, Note: ${note}, Velocity: ${velocity}`);
+    }
+  }
+});
 // Cache out tab container, and all of the panels
 const tabs = document.querySelector('.tab');
 const panels = document.querySelectorAll('.panel');
