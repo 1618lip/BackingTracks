@@ -70,7 +70,7 @@ body {
 <div class="row">
   <div class="left" style="background-color: rgba(213, 164, 87, 0.7);">
     <h2>Menu</h2>
-    <input type="text" id="mySearch" onkeyup="myFunction()" placeholder="Search Jazz Standard" title="Type in a category">
+    <input type="text" id="mySearch" onkeyup="filterSearch()" placeholder="Search Jazz Standard" title="Type in a category">
     <ul id="myMenu">
       <div class="tab">
         <li><a class="tabs" data-id="afoggyday">A Foggy Day</a></li>
@@ -179,7 +179,7 @@ function handleClick(e) {
   }
 }
 
-function myFunction() {
+function filterSearch() {
   var input, filter, ul, li, a, i;
   input = document.getElementById("mySearch");
   filter = input.value.toUpperCase();
