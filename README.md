@@ -1,5 +1,7 @@
 # JazzMIDIJam
-> Website where jazz musicians can play along to a backing track of a jazz standard using a MIDI instrument. The MIDI they produced will then be used for training data. 
+> Website where jazz musicians can play along to a backing track of a jazz standard using a MIDI instrument. The MIDI they produced will then be used for training data.
+
+**Milestones: [JazzMIDIJam](https://1618lip.notion.site/JazzMIDIJam-ce623432c9784dc782bfb225480f87c4?pvs=4)**
 ## What to do:
 
 - ```Create interface for the midi recording track```
